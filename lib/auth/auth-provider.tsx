@@ -12,8 +12,18 @@ interface User {
   }
 }
 
+interface UserProfile {
+  id: string
+  full_name: string | null
+  avatar_url: string | null
+  role: "admin" | "user" | "premium"
+  subscription_tier: string
+  credits: number
+}
+
 interface AuthContextType {
   user: User | null
+  profile: UserProfile | null
   loading: boolean
   signUp: (email: string, password: string, metadata?: any) => Promise<any>
   signIn: (email: string, password: string) => Promise<any>
@@ -25,6 +35,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
+  const [profile, setProfile] = useState<UserProfile | null>(null)
   const [loading, setLoading] = useState(true)
   const router = useRouter()
 
@@ -36,6 +47,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (storedUser) {
           const userData = JSON.parse(storedUser)
           setUser(userData)
+
+          // Create mock profile
+          const mockProfile: UserProfile = {
+            id: userData.id,
+            full_name: userData.user_metadata?.full_name || userData.email?.split("@")[0] || "User",
+            avatar_url: null,
+            role: "user",
+            subscription_tier: "Free",
+            credits: 1000,
+          }
+          setProfile(mockProfile)
         }
       } catch (error) {
         console.error("Error checking session:", error)
@@ -75,7 +97,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     // Store user in mock database
-    existingUsers.push(newUser)
+    existingUsers.push({ ...newUser, password })
     localStorage.setItem("pigeonprompt_users", JSON.stringify(existingUsers))
 
     return {
@@ -95,15 +117,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     // Check credentials (mock)
     const existingUsers = JSON.parse(localStorage.getItem("pigeonprompt_users") || "[]")
-    const foundUser = existingUsers.find((u: any) => u.email === email)
+    const foundUser = existingUsers.find((u: any) => u.email === email && u.password === password)
 
     if (!foundUser) {
       return { data: null, error: { message: "Invalid login credentials" } }
     }
 
+    // Remove password from user object
+    const { password: _, ...userWithoutPassword } = foundUser
+
     // Set user session immediately
-    setUser(foundUser)
-    localStorage.setItem("pigeonprompt_user", JSON.stringify(foundUser))
+    setUser(userWithoutPassword)
+    localStorage.setItem("pigeonprompt_user", JSON.stringify(userWithoutPassword))
+
+    // Create mock profile
+    const mockProfile: UserProfile = {
+      id: userWithoutPassword.id,
+      full_name: userWithoutPassword.user_metadata?.full_name || userWithoutPassword.email?.split("@")[0] || "User",
+      avatar_url: null,
+      role: "user",
+      subscription_tier: "Free",
+      credits: 1000,
+    }
+    setProfile(mockProfile)
 
     // Trigger navigation after state update
     setTimeout(() => {
@@ -111,13 +147,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }, 100)
 
     return {
-      data: { user: foundUser },
+      data: { user: userWithoutPassword },
       error: null,
     }
   }
 
   const signOut = async () => {
     setUser(null)
+    setProfile(null)
     localStorage.removeItem("pigeonprompt_user")
     router.push("/auth/login")
   }
@@ -139,6 +176,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const value = {
     user,
+    profile,
     loading,
     signUp,
     signIn,
