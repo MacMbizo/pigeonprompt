@@ -1,67 +1,64 @@
--- Row Level Security Policies
+-- Enable Row Level Security on all tables
+ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.ai_integrations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.prompts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.templates ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.workflows ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.workflow_executions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.marketplace_listings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.user_activities ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.collaborations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.api_keys ENABLE ROW LEVEL SECURITY;
 
 -- Users policies
-CREATE POLICY "Users can view their own profile" ON public.users
+CREATE POLICY "Users can view own profile" ON public.users
   FOR SELECT USING (auth.uid() = id);
 
-CREATE POLICY "Users can update their own profile" ON public.users
+CREATE POLICY "Users can update own profile" ON public.users
   FOR UPDATE USING (auth.uid() = id);
 
--- User profiles policies
-CREATE POLICY "Users can view their own profile details" ON public.user_profiles
-  FOR SELECT USING (auth.uid() = user_id);
-
-CREATE POLICY "Users can update their own profile details" ON public.user_profiles
+-- AI Integrations policies
+CREATE POLICY "Users can manage own integrations" ON public.ai_integrations
   FOR ALL USING (auth.uid() = user_id);
 
 -- Prompts policies
-CREATE POLICY "Users can view public prompts" ON public.prompts
-  FOR SELECT USING (is_public = true OR auth.uid() = user_id);
-
-CREATE POLICY "Users can manage their own prompts" ON public.prompts
+CREATE POLICY "Users can manage own prompts" ON public.prompts
   FOR ALL USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can view public prompts" ON public.prompts
+  FOR SELECT USING (is_public = true);
 
 -- Templates policies
+CREATE POLICY "Users can manage own templates" ON public.templates
+  FOR ALL USING (auth.uid() = user_id);
+
 CREATE POLICY "Users can view public templates" ON public.templates
-  FOR SELECT USING (is_public = true OR auth.uid() = user_id);
-
-CREATE POLICY "Users can manage their own templates" ON public.templates
-  FOR ALL USING (auth.uid() = user_id);
-
--- AI Integrations policies
-CREATE POLICY "Users can manage their own integrations" ON public.ai_integrations
-  FOR ALL USING (auth.uid() = user_id);
+  FOR SELECT USING (is_public = true);
 
 -- Workflows policies
+CREATE POLICY "Users can manage own workflows" ON public.workflows
+  FOR ALL USING (auth.uid() = user_id);
+
 CREATE POLICY "Users can view public workflows" ON public.workflows
-  FOR SELECT USING (is_public = true OR auth.uid() = user_id);
+  FOR SELECT USING (is_public = true);
 
-CREATE POLICY "Users can manage their own workflows" ON public.workflows
+-- Workflow Executions policies
+CREATE POLICY "Users can manage own executions" ON public.workflow_executions
   FOR ALL USING (auth.uid() = user_id);
 
--- Workflow executions policies
-CREATE POLICY "Users can view their own executions" ON public.workflow_executions
-  FOR SELECT USING (auth.uid() = user_id);
-
-CREATE POLICY "Users can create executions for their workflows" ON public.workflow_executions
-  FOR INSERT WITH CHECK (
-    auth.uid() = user_id AND 
-    EXISTS (SELECT 1 FROM public.workflows WHERE id = workflow_id AND user_id = auth.uid())
-  );
-
--- Marketplace policies
-CREATE POLICY "Anyone can view approved listings" ON public.marketplace_listings
-  FOR SELECT USING (status = 'approved');
-
-CREATE POLICY "Users can manage their own listings" ON public.marketplace_listings
+-- Marketplace Listings policies
+CREATE POLICY "Users can manage own listings" ON public.marketplace_listings
   FOR ALL USING (auth.uid() = user_id);
 
--- User activities policies
-CREATE POLICY "Users can view their own activities" ON public.user_activities
+CREATE POLICY "Anyone can view marketplace listings" ON public.marketplace_listings
+  FOR SELECT USING (true);
+
+-- User Activities policies
+CREATE POLICY "Users can view own activities" ON public.user_activities
   FOR SELECT USING (auth.uid() = user_id);
 
-CREATE POLICY "Users can create their own activities" ON public.user_activities
-  FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "System can insert activities" ON public.user_activities
+  FOR INSERT WITH CHECK (true);
 
 -- Collaborations policies
 CREATE POLICY "Users can view collaborations they're part of" ON public.collaborations
@@ -69,3 +66,7 @@ CREATE POLICY "Users can view collaborations they're part of" ON public.collabor
 
 CREATE POLICY "Owners can manage collaborations" ON public.collaborations
   FOR ALL USING (auth.uid() = owner_id);
+
+-- API Keys policies
+CREATE POLICY "Users can manage own API keys" ON public.api_keys
+  FOR ALL USING (auth.uid() = user_id);

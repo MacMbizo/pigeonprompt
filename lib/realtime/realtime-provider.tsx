@@ -5,123 +5,94 @@ import type React from "react"
 import { createContext, useContext, useEffect, useState } from "react"
 import { createClient } from "@/lib/supabase/client"
 import { useAuth } from "@/lib/auth/auth-provider"
+import type { RealtimeChannel } from "@supabase/supabase-js"
 
 interface RealtimeContextType {
-  workflowExecutions: any[]
-  notifications: any[]
-  onlineUsers: string[]
-  subscribeToWorkflowExecution: (executionId: string) => void
-  unsubscribeFromWorkflowExecution: (executionId: string) => void
+  subscribe: (table: string, callback: (payload: any) => void) => () => void
+  unsubscribe: (table: string) => void
+  isConnected: boolean
 }
 
 const RealtimeContext = createContext<RealtimeContextType | undefined>(undefined)
 
 export function RealtimeProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth()
-  const [workflowExecutions, setWorkflowExecutions] = useState<any[]>([])
-  const [notifications, setNotifications] = useState<any[]>([])
-  const [onlineUsers, setOnlineUsers] = useState<string[]>([])
-  const [subscriptions, setSubscriptions] = useState<Map<string, any>>(new Map())
-
+  const [channels, setChannels] = useState<Map<string, RealtimeChannel>>(new Map())
+  const [isConnected, setIsConnected] = useState(false)
   const supabase = createClient()
 
   useEffect(() => {
     if (!user) return
 
-    // Subscribe to user activities (notifications)
-    const activitiesChannel = supabase
-      .channel("user-activities")
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "user_activities",
-          filter: `user_id=eq.${user.id}`,
-        },
-        (payload) => {
-          setNotifications((prev) => [payload.new, ...prev.slice(0, 49)]) // Keep last 50
-        },
-      )
-      .subscribe()
+    // Set up connection status monitoring
+    const channel = supabase.channel("connection-status")
 
-    // Subscribe to presence for online users
-    const presenceChannel = supabase
-      .channel("online-users")
+    channel
       .on("presence", { event: "sync" }, () => {
-        const state = presenceChannel.presenceState()
-        const users = Object.keys(state)
-        setOnlineUsers(users)
+        setIsConnected(true)
       })
-      .on("presence", { event: "join" }, ({ key }) => {
-        setOnlineUsers((prev) => [...prev, key])
+      .on("presence", { event: "join" }, () => {
+        setIsConnected(true)
       })
-      .on("presence", { event: "leave" }, ({ key }) => {
-        setOnlineUsers((prev) => prev.filter((id) => id !== key))
+      .on("presence", { event: "leave" }, () => {
+        setIsConnected(false)
       })
-      .subscribe(async (status) => {
-        if (status === "SUBSCRIBED") {
-          await presenceChannel.track({
-            user_id: user.id,
-            online_at: new Date().toISOString(),
-          })
-        }
-      })
+      .subscribe()
 
     return () => {
-      activitiesChannel.unsubscribe()
-      presenceChannel.unsubscribe()
+      channel.unsubscribe()
     }
-  }, [user])
+  }, [user, supabase])
 
-  const subscribeToWorkflowExecution = (executionId: string) => {
-    if (subscriptions.has(executionId)) return
+  const subscribe = (table: string, callback: (payload: any) => void) => {
+    if (!user) return () => {}
+
+    const channelName = `${table}-${user.id}`
+
+    // Check if channel already exists
+    if (channels.has(channelName)) {
+      return () => unsubscribe(table)
+    }
 
     const channel = supabase
-      .channel(`workflow-execution-${executionId}`)
+      .channel(channelName)
       .on(
         "postgres_changes",
         {
-          event: "UPDATE",
+          event: "*",
           schema: "public",
-          table: "workflow_executions",
-          filter: `id=eq.${executionId}`,
+          table: table,
+          filter: `user_id=eq.${user.id}`,
         },
-        (payload) => {
-          setWorkflowExecutions((prev) => {
-            const index = prev.findIndex((exec) => exec.id === executionId)
-            if (index >= 0) {
-              const updated = [...prev]
-              updated[index] = payload.new
-              return updated
-            }
-            return [payload.new, ...prev]
-          })
-        },
+        callback,
       )
       .subscribe()
 
-    setSubscriptions((prev) => new Map(prev).set(executionId, channel))
+    setChannels((prev) => new Map(prev).set(channelName, channel))
+
+    return () => unsubscribe(table)
   }
 
-  const unsubscribeFromWorkflowExecution = (executionId: string) => {
-    const channel = subscriptions.get(executionId)
+  const unsubscribe = (table: string) => {
+    if (!user) return
+
+    const channelName = `${table}-${user.id}`
+    const channel = channels.get(channelName)
+
     if (channel) {
       channel.unsubscribe()
-      setSubscriptions((prev) => {
-        const updated = new Map(prev)
-        updated.delete(executionId)
-        return updated
+      setChannels((prev) => {
+        const newChannels = new Map(prev)
+        newChannels.delete(channelName)
+        return newChannels
       })
     }
   }
 
   const value = {
-    workflowExecutions,
-    notifications,
-    onlineUsers,
-    subscribeToWorkflowExecution,
-    unsubscribeFromWorkflowExecution,
+    subscribe,
+    unsubscribe,
+    isConnected,
   }
 
   return <RealtimeContext.Provider value={value}>{children}</RealtimeContext.Provider>
