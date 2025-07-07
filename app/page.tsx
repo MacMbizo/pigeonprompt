@@ -9,7 +9,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Progress } from "@/components/ui/progress"
 import { useAuth } from "@/lib/auth/auth-provider"
-import { createClient } from "@/lib/supabase/client"
 import Link from "next/link"
 import {
   Search,
@@ -48,37 +47,54 @@ export default function PigeonPromptDashboard() {
   })
   const [loading, setLoading] = useState(true)
 
-  const supabase = createClient()
-
   useEffect(() => {
-    async function fetchDashboardData() {
+    // Mock data loading
+    const loadMockData = async () => {
       if (!user) return
 
-      try {
-        const [promptsRes, workflowsRes, templatesRes, integrationsRes, activitiesRes] = await Promise.all([
-          supabase.from("prompts").select("*").eq("user_id", user.id).limit(5),
-          supabase.from("workflows").select("*").eq("user_id", user.id).limit(5),
-          supabase.from("templates").select("*").eq("user_id", user.id).limit(5),
-          supabase.from("ai_integrations").select("*").eq("user_id", user.id).limit(5),
-          supabase.from("user_activities").select("*").eq("user_id", user.id).limit(10),
-        ])
+      // Simulate API delay
+      await new Promise((resolve) => setTimeout(resolve, 1000))
 
-        setDashboardData({
-          prompts: promptsRes.data || [],
-          workflows: workflowsRes.data || [],
-          templates: templatesRes.data || [],
-          integrations: integrationsRes.data || [],
-          activities: activitiesRes.data || [],
-        })
-      } catch (error) {
-        console.error("Error fetching dashboard data:", error)
-      } finally {
-        setLoading(false)
+      const mockData = {
+        prompts: [
+          { id: 1, title: "Blog Post Writer", category: "Content", created_at: new Date().toISOString() },
+          { id: 2, title: "Code Reviewer", category: "Development", created_at: new Date().toISOString() },
+          { id: 3, title: "Email Generator", category: "Marketing", created_at: new Date().toISOString() },
+        ],
+        workflows: [
+          { id: 1, name: "Content Pipeline", status: "active", created_at: new Date().toISOString() },
+          { id: 2, name: "Data Analysis", status: "draft", created_at: new Date().toISOString() },
+        ],
+        templates: [
+          { id: 1, name: "SEO Article", category: "Content", created_at: new Date().toISOString() },
+          { id: 2, name: "Product Description", category: "E-commerce", created_at: new Date().toISOString() },
+        ],
+        integrations: [
+          { id: 1, name: "OpenAI GPT-4", provider: "openai", status: "active" },
+          { id: 2, name: "Claude 3", provider: "anthropic", status: "inactive" },
+        ],
+        activities: [
+          {
+            id: 1,
+            type: "prompt_created",
+            data: { title: "New prompt created" },
+            created_at: new Date().toISOString(),
+          },
+          {
+            id: 2,
+            type: "workflow_executed",
+            data: { title: "Workflow executed" },
+            created_at: new Date().toISOString(),
+          },
+        ],
       }
+
+      setDashboardData(mockData)
+      setLoading(false)
     }
 
-    fetchDashboardData()
-  }, [user, supabase])
+    loadMockData()
+  }, [user])
 
   const quickStats = {
     totalPrompts: dashboardData.prompts.length,

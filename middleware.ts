@@ -1,74 +1,19 @@
-import { createServerClient } from "@supabase/ssr"
 import { NextResponse, type NextRequest } from "next/server"
 
 export async function middleware(request: NextRequest) {
-  let response = NextResponse.next({
-    request: {
-      headers: request.headers,
-    },
-  })
+  // For v0 environment, we'll use a simplified approach
+  // In production, this would check actual Supabase session
 
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get(name: string) {
-          return request.cookies.get(name)?.value
-        },
-        set(name: string, value: string, options: any) {
-          request.cookies.set({
-            name,
-            value,
-            ...options,
-          })
-          response = NextResponse.next({
-            request: {
-              headers: request.headers,
-            },
-          })
-          response.cookies.set({
-            name,
-            value,
-            ...options,
-          })
-        },
-        remove(name: string, options: any) {
-          request.cookies.set({
-            name,
-            value: "",
-            ...options,
-          })
-          response = NextResponse.next({
-            request: {
-              headers: request.headers,
-            },
-          })
-          response.cookies.set({
-            name,
-            value: "",
-            ...options,
-          })
-        },
-      },
-    },
-  )
+  const isAuthPage = request.nextUrl.pathname.startsWith("/auth")
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  // Protect authenticated routes
-  if (!user && !request.nextUrl.pathname.startsWith("/auth")) {
-    return NextResponse.redirect(new URL("/auth/login", request.url))
+  // Allow auth pages to load without authentication
+  if (isAuthPage) {
+    return NextResponse.next()
   }
 
-  // Redirect authenticated users away from auth pages
-  if (user && request.nextUrl.pathname.startsWith("/auth")) {
-    return NextResponse.redirect(new URL("/", request.url))
-  }
-
-  return response
+  // For demo purposes, allow all other pages
+  // In production, you would check for valid session here
+  return NextResponse.next()
 }
 
 export const config = {
