@@ -26,9 +26,12 @@ export default function LoginPage() {
     setIsLoading(true)
 
     try {
-      const { error } = await signIn(email, password)
+      const { data, error } = await signIn(email, password)
       if (error) {
         setError(error.message)
+      } else if (data?.user) {
+        // Success - the auth provider will handle navigation
+        console.log("Login successful")
       }
     } catch (err) {
       setError("An unexpected error occurred")

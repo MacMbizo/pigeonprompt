@@ -34,10 +34,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         const storedUser = localStorage.getItem("pigeonprompt_user")
         if (storedUser) {
-          setUser(JSON.parse(storedUser))
+          const userData = JSON.parse(storedUser)
+          setUser(userData)
         }
       } catch (error) {
         console.error("Error checking session:", error)
+        localStorage.removeItem("pigeonprompt_user")
       } finally {
         setLoading(false)
       }
@@ -99,9 +101,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return { data: null, error: { message: "Invalid login credentials" } }
     }
 
-    // Set user session
+    // Set user session immediately
     setUser(foundUser)
     localStorage.setItem("pigeonprompt_user", JSON.stringify(foundUser))
+
+    // Trigger navigation after state update
+    setTimeout(() => {
+      router.push("/")
+    }, 100)
 
     return {
       data: { user: foundUser },

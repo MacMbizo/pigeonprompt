@@ -51,7 +51,7 @@ export default function RegisterPage() {
     }
 
     try {
-      const { error } = await signUp(formData.email, formData.password, {
+      const { data, error } = await signUp(formData.email, formData.password, {
         full_name: formData.fullName,
       })
 
@@ -59,6 +59,13 @@ export default function RegisterPage() {
         setError(error.message)
       } else {
         setSuccess(true)
+        // Also store a simple password for demo purposes
+        const existingUsers = JSON.parse(localStorage.getItem("pigeonprompt_users") || "[]")
+        const userIndex = existingUsers.findIndex((u: any) => u.email === formData.email)
+        if (userIndex >= 0) {
+          existingUsers[userIndex].password = formData.password // Store for demo
+          localStorage.setItem("pigeonprompt_users", JSON.stringify(existingUsers))
+        }
       }
     } catch (err) {
       setError("An unexpected error occurred")
