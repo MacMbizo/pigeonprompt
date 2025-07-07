@@ -11,7 +11,7 @@ A simple project for managing and organizing prompts for AI interactions.
 ### Installation
 1. Clone the repository:
    ```bash
-   git clone https://github.com/mmbizo/pigeonprompt.git
+   https://github.com/MacMbizo/pigeonprompt.git
    cd pigeonprompt
    ```
 
