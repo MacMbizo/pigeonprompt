@@ -10,10 +10,10 @@ A simple project for managing and organizing prompts for AI interactions.
 
 ### Installation
 1. Clone the repository:
-   ```bash
+   \`\`\`bash
    https://github.com/MacMbizo/pigeonprompt.git
    cd pigeonprompt
-   ```
+   \`\`\`
 
 ## Usage
 
